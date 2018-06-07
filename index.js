@@ -83,16 +83,26 @@ const buildResponse = opt => new Promise((resolve, reject) => {
 	sign.addReference("//*[local-name(.)='Assertion']", ["http://www.w3.org/2000/09/xmldsig#enveloped-signature", "http://www.w3.org/2001/10/xml-exc-c14n#"], "http://www.w3.org/2001/04/xmlenc#sha256");
 	sign.keyInfoProvider = toKeyInfo(opt.Certificate);
 	sign.signingKey = opt.PrivateKey;
+	const responseHeader = {
+        "xmlns:samlp": "urn:oasis:names:tc:SAML:2.0:protocol",
+        "ID": "_" + uuid.v4(),
+        "Version": "2.0",
+        "IssueInstant": toInstant(new Date),
+        "Destination": opt.Destination
+    };
+
+	const subjectConfirmationData = {
+        "NotOnOrAfter": opt.NotOnOrAfter,
+        "NotBefore": opt.NotBefore,
+        "Recipient": opt.Recipient
+    };
+
+	if(opt.InResponseTo) {
+        responseHeader.InResponseTo = subjectConfirmationData.InResponseTo = opt.InResponseTo;
+	}
     sign.computeSignature(builder.buildObject({
 		"samlp:Response": {
-			"$": {
-				"xmlns:samlp": "urn:oasis:names:tc:SAML:2.0:protocol",
-				"ID": "_" + uuid.v4(),
-				"InResponseTo": opt.InResponseTo,
-				"Version": "2.0",
-				"IssueInstant": toInstant(new Date),
-				"Destination": opt.Destination
-			},
+			"$": responseHeader,
 			"saml:Issuer": {
 				"$": {
 					"xmlns:saml": "urn:oasis:names:tc:SAML:2.0:assertion"
@@ -130,9 +140,7 @@ const buildResponse = opt => new Promise((resolve, reject) => {
 							"Method": "urn:oasis:names:tc:SAML:2.0:cm:bearer"
 						},
 						"saml:SubjectConfirmationData": {
-							"$": {
-								"InResponseTo": opt.InResponseTo
-							}
+							"$": subjectConfirmationData
 						}
 					}
 				},
